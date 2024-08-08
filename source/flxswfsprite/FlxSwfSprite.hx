@@ -1,5 +1,6 @@
 package flxswfsprite;
 
+import lime.utils.Log;
 import lime.utils.AssetLibrary;
 import flixel.util.FlxColor;
 import openfl.geom.Matrix;
@@ -55,6 +56,7 @@ class FlxSwfSprite extends FlxSprite {
 
 		this.library = library;
 		assetLibrary = Assets.getLibrary(library);
+		trace(library, assetLibrary, assetLibrary.list(null));
 
 		clipContainer = new Sprite();
 		clipContainer.visible = false;
@@ -65,6 +67,7 @@ class FlxSwfSprite extends FlxSprite {
 
 	// me wnen i forget how to use eregs and dont care enough to look it up
 	static final _az123 = 'abcdefghijklmnopqrstuvwxyz1234567890_';
+
 	static function formatSymbolName(inp:String) {
 		var out = '';
 		var i = 0;
@@ -89,11 +92,15 @@ class FlxSwfSprite extends FlxSprite {
 	}
 
 	public function addSymbol(symbol:String, name:String = null, fps:Float = 24, loop:Bool = false, ?indices:Array<Int>) {
-		if (!symbolCheck(symbol)) {
+		if (!symbolCheck(symbol) && Log.throwErrors) {
 			symbolError(symbol);
 			return;
 		}
 		final movieClip = Assets.getMovieClip('$library:${formatSymbolName(symbol)}');
+		if (movieClip == null) {
+			symbolError(symbol);
+			return;
+		}
 
 		// dumb dumb dumb dumb dumb dumb
 		var mW = .0;
@@ -104,7 +111,7 @@ class FlxSwfSprite extends FlxSprite {
 		_clipSize.addChild(movieClip);
 		while (movieClip.currentFrame < movieClip.totalFrames) {
 			// no matter what i could not get a proper size (due to registration points i think??) so whatever
-			mW = Math.max(mW, _clipSize.width * 1.5); 
+			mW = Math.max(mW, _clipSize.width * 1.5);
 			mH = Math.max(mH, _clipSize.height * 1.5);
 			mSW = Math.max(mSW, _clipSize.stage.width);
 			mSH = Math.max(mSH, _clipSize.stage.height);
