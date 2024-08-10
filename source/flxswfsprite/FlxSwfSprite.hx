@@ -1,5 +1,8 @@
 package flxswfsprite;
 
+import flixel.math.FlxRect;
+import openfl.geom.Rectangle;
+import flixel.math.FlxPoint;
 import lime.utils.Log;
 import lime.utils.AssetLibrary;
 import flixel.util.FlxColor;
@@ -19,14 +22,18 @@ typedef SymbolData = {
 	var name:String;
 	var graphic:FlxGraphic;
 	var movieClip:MovieClip;
-	var stageWidth:Float;
-	var stageHeight:Float;
+	var activeRect:FlxRect;
+	var size:FlxPoint;
 	var loop:Bool;
 	var fps:Float;
 	var indices:Null<Array<Int>>;
 }
 
 class FlxSwfSprite extends FlxSprite {
+	public static var warn:Bool;
+
+	public var drawScale:Float = 1;
+
 	public var symbolAnimComplete:SymbolData->Void;
 
 	public var symbolFrame(get, set):Int;
@@ -51,12 +58,13 @@ class FlxSwfSprite extends FlxSprite {
 
 	var symbolMatrix = new Matrix();
 
+	var dumb = FlxPoint.get();
+
 	public function new(x = .0, y = .0, library:String) {
 		super(x, y);
 
 		this.library = library;
 		assetLibrary = Assets.getLibrary(library);
-		trace(library, assetLibrary, assetLibrary.list(null));
 
 		clipContainer = new Sprite();
 		clipContainer.visible = false;
@@ -88,7 +96,10 @@ class FlxSwfSprite extends FlxSprite {
 	}
 
 	function symbolError(symbol:String) {
-		FlxG.log.error('Couldn\'t find symbol $symbol');
+		final error = 'Couldn\'t find symbol $symbol';
+		trace(error);
+		if (warn)
+			FlxG.log.error(error);
 	}
 
 	public function addSymbol(symbol:String, name:String = null, fps:Float = 24, loop:Bool = false, ?indices:Array<Int>) {
@@ -103,32 +114,44 @@ class FlxSwfSprite extends FlxSprite {
 		}
 
 		// dumb dumb dumb dumb dumb dumb
-		var mW = .0;
-		var mH = .0;
-		var mSW = .0;
-		var mSH = .0;
+		var first = true;
+		final rect = FlxRect.get();
+		final size = FlxPoint.get();
 
-		_clipSize.addChild(movieClip);
+		
 		while (movieClip.currentFrame < movieClip.totalFrames) {
-			// no matter what i could not get a proper size (due to registration points i think??) so whatever
-			mW = Math.max(mW, _clipSize.width * 1.5);
-			mH = Math.max(mH, _clipSize.height * 1.5);
-			mSW = Math.max(mSW, _clipSize.stage.width);
-			mSH = Math.max(mSH, _clipSize.stage.height);
+			@:privateAccess
+			for (child in movieClip.__children) {
+				if (child.x != 0 && rect.x > child.x || rect.x == 0)
+					rect.x = child.x;
+				if (child.y != 0  && rect.y > child.y|| rect.y == 0)
+					rect.y = child.y;
+				first = false;
+				rect.width = Math.max(rect.width, child.x + child.width);
+				rect.height = Math.max(rect.height, child.y + child.height);
+			}
 			movieClip.nextFrame();
 		}
-		_clipSize.removeChild(movieClip);
+		movieClip.gotoAndStop(0);
+		rect.width = rect.width - rect.x;
+		rect.height = rect.height - rect.y;
+		size.scale(drawScale);
+		rect.x *= drawScale;
+		rect.y *= drawScale;
+		rect.width *= drawScale * 1.5;
+		rect.height *= drawScale * 1.5;
+
 		clipContainer.addChild(movieClip);
 
 		final poo:SymbolData = {
 			name: name ?? symbol,
-			graphic: FlxGraphic.fromRectangle(Math.ceil(mW), Math.ceil(mH), 0x00, true, '$library:$symbol:graphic'),
+			graphic: FlxGraphic.fromRectangle(Math.ceil(rect.width), Math.ceil(rect.height), 0x00, true, '$this$library:$symbol:graphic'),
 			movieClip: movieClip,
 			loop: loop,
 			fps: fps,
-			stageWidth: mSW,
-			stageHeight: mSH,
 			indices: indices,
+			activeRect: rect,
+			size: size,
 		}
 		poo.graphic.persist = true;
 
@@ -145,6 +168,8 @@ class FlxSwfSprite extends FlxSprite {
 			_animFrame = 0;
 			fps = currentSymbol.fps;
 			frames = currentSymbol.graphic.imageFrame;
+			width = currentSymbol.graphic.width;
+			height = currentSymbol.graphic.height;
 		}
 	}
 
@@ -154,6 +179,17 @@ class FlxSwfSprite extends FlxSprite {
 
 	override function update(elapsed:Float) {
 		super.update(elapsed);
+
+		final speed = elapsed * (FlxG.keys.pressed.SHIFT ? 200 : 50);
+		if (FlxG.keys.pressed.A)
+			dumb.x -= speed;
+		else if (FlxG.keys.pressed.D)
+			dumb.x += speed;
+		
+		if (FlxG.keys.pressed.W)
+			dumb.y -= speed;
+		else if (FlxG.keys.pressed.S)
+			dumb.y += speed;
 
 		if (playing) {
 			_animFrame += elapsed * fps;
@@ -179,7 +215,9 @@ class FlxSwfSprite extends FlxSprite {
 			this.fill(FlxColor.TRANSPARENT);
 			symbolMatrix.identity();
 			// what the fuck
-			symbolMatrix.translate(currentSymbol.graphic.width / 2.5, (-currentSymbol.stageHeight / 1.5) + currentSymbol.graphic.height / 1.5);
+			symbolMatrix.scale(drawScale, drawScale);
+			//symbolMatrix.translate(dumb.x, dumb.y);
+			//symbolMatrix.translate(-currentSymbol.activeRect.x, -currentSymbol.activeRect.y);
 			graphic.bitmap.draw(currentSymbol.movieClip, symbolMatrix, null, null, false);
 		}
 		super.draw();
