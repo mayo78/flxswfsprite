@@ -102,12 +102,12 @@ class FlxSwfSprite extends FlxSprite {
 			FlxG.log.error(error);
 	}
 
-	public function addSymbol(symbol:String, name:String = null, fps:Float = 24, loop:Bool = false, ?indices:Array<Int>) {
+	public function addSymbol(symbol:String, name:String = null, fps:Float = 24, loop:Bool = false, ?indices:Array<Int>, ?library:String) {
 		if (!symbolCheck(symbol) && Log.throwErrors) {
 			symbolError(symbol);
 			return;
 		}
-		final movieClip = Assets.getMovieClip('$library:${formatSymbolName(symbol)}');
+		final movieClip = Assets.getMovieClip('${library ?? this.library}:${formatSymbolName(symbol)}');
 		if (movieClip == null) {
 			symbolError(symbol);
 			return;
