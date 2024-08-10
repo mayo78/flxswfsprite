@@ -4,7 +4,6 @@ import flixel.math.FlxRect;
 import openfl.geom.Rectangle;
 import flixel.math.FlxPoint;
 import lime.utils.Log;
-import lime.utils.AssetLibrary;
 import flixel.util.FlxColor;
 import openfl.geom.Matrix;
 import openfl.display.Sprite;
@@ -46,8 +45,6 @@ class FlxSwfSprite extends FlxSprite {
 
 	var library:String;
 
-	var assetLibrary:AssetLibrary;
-
 	var animationMap:Map<String, SymbolData> = [];
 
 	var currentSymbol:SymbolData;
@@ -64,7 +61,6 @@ class FlxSwfSprite extends FlxSprite {
 		super(x, y);
 
 		this.library = library;
-		assetLibrary = Assets.getLibrary(library);
 
 		clipContainer = new Sprite();
 		clipContainer.visible = false;
@@ -91,10 +87,6 @@ class FlxSwfSprite extends FlxSprite {
 		return out;
 	}
 
-	function symbolCheck(symbol:String) {
-		return assetLibrary.exists(formatSymbolName(symbol), null);
-	}
-
 	function symbolError(symbol:String) {
 		final error = 'Couldn\'t find symbol $symbol';
 		trace(error);
@@ -103,11 +95,8 @@ class FlxSwfSprite extends FlxSprite {
 	}
 
 	public function addSymbol(symbol:String, name:String = null, fps:Float = 24, loop:Bool = false, ?indices:Array<Int>, ?library:String) {
-		if (!symbolCheck(symbol) && Log.throwErrors) {
-			symbolError(symbol);
-			return;
-		}
-		final movieClip = Assets.getMovieClip('${library ?? this.library}:${formatSymbolName(symbol)}');
+		library = library ?? this.library;
+		final movieClip = Assets.getMovieClip('$library:${formatSymbolName(symbol)}');
 		if (movieClip == null) {
 			symbolError(symbol);
 			return;
@@ -153,6 +142,7 @@ class FlxSwfSprite extends FlxSprite {
 			activeRect: rect,
 			size: size,
 		}
+		trace(poo.graphic.width, poo.graphic.height, poo.graphic.key);
 		poo.graphic.persist = true;
 
 		animationMap.set(poo.name, poo);
