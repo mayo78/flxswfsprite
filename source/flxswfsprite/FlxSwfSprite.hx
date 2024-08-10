@@ -158,9 +158,14 @@ class FlxSwfSprite extends FlxSprite {
 			_animFrame = 0;
 			fps = currentSymbol.fps;
 			frames = currentSymbol.graphic.imageFrame;
-			width = currentSymbol.graphic.width;
-			height = currentSymbol.graphic.height;
+			updateHitbox();
 		}
+	}
+
+	override function updateHitbox() {
+		frameWidth = Math.ceil(currentSymbol.activeRect.width / 1.5);
+		frameHeight = Math.ceil(currentSymbol.activeRect.height / 1.5);
+		super.updateHitbox();
 	}
 
 	public function symbolExists(name:String) {
