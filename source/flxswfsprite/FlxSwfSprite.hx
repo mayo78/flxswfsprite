@@ -55,8 +55,6 @@ class FlxSwfSprite extends FlxSprite {
 
 	var symbolMatrix = new Matrix();
 
-	var dumb = FlxPoint.get();
-
 	public function new(x = .0, y = .0, library:String) {
 		super(x, y);
 
@@ -174,17 +172,6 @@ class FlxSwfSprite extends FlxSprite {
 	override function update(elapsed:Float) {
 		super.update(elapsed);
 
-		final speed = elapsed * (FlxG.keys.pressed.SHIFT ? 200 : 50);
-		if (FlxG.keys.pressed.A)
-			dumb.x -= speed;
-		else if (FlxG.keys.pressed.D)
-			dumb.x += speed;
-		
-		if (FlxG.keys.pressed.W)
-			dumb.y -= speed;
-		else if (FlxG.keys.pressed.S)
-			dumb.y += speed;
-
 		if (playing) {
 			_animFrame += elapsed * fps;
 			var nextFrame = Math.floor(_animFrame);
@@ -210,7 +197,6 @@ class FlxSwfSprite extends FlxSprite {
 			symbolMatrix.identity();
 			// what the fuck
 			symbolMatrix.scale(drawScale, drawScale);
-			//symbolMatrix.translate(dumb.x, dumb.y);
 			//symbolMatrix.translate(-currentSymbol.activeRect.x, -currentSymbol.activeRect.y);
 			graphic.bitmap.draw(currentSymbol.movieClip, symbolMatrix, null, null, false);
 		}
