@@ -74,16 +74,16 @@ class FlxSwfSprite extends FlxSprite {
 
 	static function formatSymbolName(inp:String) {
 		var out = '';
-		var i = 0;
-		while (i < inp.length) {
+
+		for (i in 0...inp.length) {
 			if (!inp.isSpace(i)) {
 				var char = inp.charAt(i);
 				if (!_az123.contains(char.toLowerCase()))
 					char = '_';
 				out += char;
 			}
-			i++;
 		}
+
 		return out;
 	}
 
