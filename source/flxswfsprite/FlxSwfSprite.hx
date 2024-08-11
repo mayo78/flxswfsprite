@@ -69,8 +69,7 @@ class FlxSwfSprite extends FlxSprite {
 		FlxG.addChildBelowMouse(clipContainer);
 	}
 
-	// me wnen i forget how to use eregs and dont care enough to look it up
-	static final _az123 = 'abcdefghijklmnopqrstuvwxyz1234567890_';
+	static final _az123:EReg = ~/^[a-z0-9_]+$/i;
 
 	static function formatSymbolName(inp:String) {
 		var out = '';
@@ -78,7 +77,7 @@ class FlxSwfSprite extends FlxSprite {
 		for (i in 0...inp.length) {
 			if (!inp.isSpace(i)) {
 				var char = inp.charAt(i);
-				if (!_az123.contains(char.toLowerCase()))
+				if (!_az123.match(char.toLowerCase()))
 					char = '_';
 				out += char;
 			}
