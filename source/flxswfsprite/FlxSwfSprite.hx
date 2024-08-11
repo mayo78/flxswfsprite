@@ -142,6 +142,9 @@ class FlxSwfSprite extends FlxSprite {
 		
 		symbolData.graphic.persist = true;
 		animationMap.set(symbolData.name, symbolData);
+
+		rect.put();
+		size.put();
 	}
 
 	public function playSymbol(name:String) {
