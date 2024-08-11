@@ -3,7 +3,7 @@
 	"url" : "https://github.com/mayo78/flxswfsprite/",
 	"license": "MIT",
 	"tags": ["flixel", "game", "openfl", "flash", "neko", "cpp", "android", "ios", "cross", "vscode"],
-	"description": "This allows you to use a swf MovieClip asset as an FlxSprite",
+	"description": "This allows you to use an swf MovieClip asset as an FlxSprite",
 	"version": "1.0.0",
 	"classPath": "source/",
 	"releasenote": "Initial release, WRITTEN HORRIBLY",
