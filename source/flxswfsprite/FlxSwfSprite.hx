@@ -129,7 +129,7 @@ class FlxSwfSprite extends FlxSprite {
 
 		clipContainer.addChild(movieClip);
 
-		final poo:SymbolData = {
+		final symbolData:SymbolData = {
 			name: name ?? symbol,
 			graphic: FlxGraphic.fromRectangle(Math.ceil(rect.width), Math.ceil(rect.height), 0x00, true, '$this$library:$symbol:graphic'),
 			movieClip: movieClip,
@@ -140,9 +140,8 @@ class FlxSwfSprite extends FlxSprite {
 			size: size,
 		}
 		
-		poo.graphic.persist = true;
-
-		animationMap.set(poo.name, poo);
+		symbolData.graphic.persist = true;
+		animationMap.set(symbolData.name, symbolData);
 	}
 
 	public function playSymbol(name:String) {
