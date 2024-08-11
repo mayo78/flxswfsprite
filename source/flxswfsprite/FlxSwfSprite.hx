@@ -26,7 +26,7 @@ typedef SymbolData = {
 }
 
 class FlxSwfSprite extends FlxSprite {
-	public static var warn:Bool;
+	public static var warn:Bool = true;
 
 	public var drawScale:Float = 1;
 	
