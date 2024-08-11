@@ -139,7 +139,7 @@ class FlxSwfSprite extends FlxSprite {
 			activeRect: rect,
 			size: size,
 		}
-		trace(poo.graphic.width, poo.graphic.height, poo.graphic.key);
+		
 		poo.graphic.persist = true;
 
 		animationMap.set(poo.name, poo);
