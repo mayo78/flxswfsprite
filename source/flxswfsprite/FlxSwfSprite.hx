@@ -1,7 +1,6 @@
-package deepend.system;
+package flxswfsprite;
 
 import flixel.util.FlxSignal.FlxTypedSignal;
-import flixel.addons.effects.FlxSkewedSprite;
 import flixel.math.FlxRect;
 import flixel.math.FlxPoint;
 import flixel.util.FlxColor;
@@ -14,6 +13,7 @@ import openfl.display.MovieClip;
 import flixel.FlxSprite;
 
 using flixel.util.FlxSpriteUtil;
+using flxswfsprite.MovieClipUtil;
 using StringTools;
 
 typedef SymbolData = {
@@ -26,26 +26,67 @@ typedef SymbolData = {
 	var indices:Null<Array<Int>>;
 }
 
-class FlxSwfSprite extends FlxSkewedSprite {
+class FlxSwfSprite extends #if flixel_addons flixel.addons.effects.FlxSkewedSprite #else flixel.FlxSprite #end {
+	/**
+	 * Will warn if theres an error
+	 */
 	public static var warn:Bool = true;
 
+	/**
+	 * The scale that the symbol is drawn at
+	 */
 	public var drawScale:Float = 1;
 
+	/**
+	 * Prevents any Movie Clips from playing at all
+	 */
+	public var stopMovieClips:Bool;
+
+	// this is a wip at the moment its best to leave this on.
+	/**
+	 * Syncs all Movie Clips to the main timeline
+	 * *note* Doesn't function well with indices
+	 */
+	public var syncMovieClips:Bool = true;
+
+	/**
+	 * Signal called when the current symbol completes its animation
+	 */
 	public var symbolAnimComplete:FlxTypedSignal<SymbolData->Void> = new FlxTypedSignal<SymbolData->Void>();
+	/**
+	 * Signal called when the current symbol changes its frame
+	 */
 	public var symbolAnimFrame:FlxTypedSignal<(SymbolData, Int) -> Void> = new FlxTypedSignal<(SymbolData, Int) -> Void>();
 
+	/**
+	 * Whether the symbol is playing. Can be set manually if you want
+	 */
 	public var playing:Bool;
+	/**
+	 * The current symbol frame. Can be set manually.
+	 */
 	public var symbolFrame(get, set):Int;
+	/**
+	 * If the current symbols animation is complete
+	 */
 	public var finished(get, null):Bool;
 
-	var curFrame(get, null):Int;
-
+	/**
+	 * The framerate of the current symbol. Can be set manually.
+	 */
 	public var fps:Float;
+	
+	var curFrame(get, null):Int;
 
 	var _animFrame:Float;
 
+	var _movieClipAnimFrame:Float;
+
 	var library:String;
 
+	/**
+	 * A map that contains info about every added symbol
+	 */
 	var animationMap:Map<String, SymbolData> = [];
 	var currentSymbol:SymbolData;
 
@@ -94,6 +135,15 @@ class FlxSwfSprite extends FlxSkewedSprite {
 			FlxG.log.error(error);
 	}
 
+	/**
+	 * Adds a symbol as an animation to the sprite
+	 * @param symbol The name of the symbol from the library.
+	 * @param name Optional name to refer to the animation by. Will be the symbol name if left null
+	 * @param fps The fps of the animation
+	 * @param loop Whether the animation should loop
+	 * @param indices An optional list of frames that the symbol should 
+	 * @param library If the symbol comes from a different library, specify here
+	 */
 	public function addSymbol(symbol:String, name:String = null, fps:Float = 24, loop:Bool = false, ?indices:Array<Int>, ?library:String) {
 		library = library ?? this.library;
 
@@ -108,8 +158,7 @@ class FlxSwfSprite extends FlxSkewedSprite {
 		final rect = FlxRect.get();
 
 		while (movieClip.currentFrame < movieClip.totalFrames) {
-			@:privateAccess
-			for (child in movieClip.__children) {
+			for (child in movieClip.getChildren()) {
 				if (child.x != 0 && rect.x > child.x || rect.x == 0)
 					rect.x = child.x;
 
@@ -123,7 +172,7 @@ class FlxSwfSprite extends FlxSkewedSprite {
 			movieClip.nextFrame();
 		}
 
-		movieClip.gotoAndStop(0);
+		movieClip.goto(0);
 
 		rect.width = rect.width - rect.x;
 		rect.height = rect.height - rect.y;
@@ -150,15 +199,24 @@ class FlxSwfSprite extends FlxSkewedSprite {
 		animationMap.set(symbolData.name, symbolData);
 	}
 
+	/**
+	 * Play a symbol as an animation
+	 * @param name The name of the symbol
+	 * @param frame The frame to start on
+	 */
 	public function playSymbol(name:String, frame:Int = 0) {
 		if (!animationMap.exists(name)) {
 			symbolError(name);
 		} else {
 			playing = true;
 			currentSymbol = animationMap.get(name);
+			currentSymbol.movieClip.stopAllMovieClips();
+			if (syncMovieClips)
+				updateMovieClips(currentSymbol.movieClip, false);
 
 			symbolFrame = frame;
 			_animFrame = frame;
+			_movieClipAnimFrame = 0;
 
 			fps = currentSymbol.fps;
 			frames = currentSymbol.graphic.imageFrame;
@@ -174,19 +232,45 @@ class FlxSwfSprite extends FlxSkewedSprite {
 		resetSize();
 	}
 
+	/**
+	 * Returns if a symbol exists in the added animations.
+	 * @param name The name of the symbol.
+	 */
 	public function symbolExists(name:String) {
 		return animationMap.exists(name);
+	}
+
+	function updateMovieClips(movieClip:MovieClip, advance:Bool, ?skip:Bool) {
+		if (!skip) {
+			if (advance && !movieClip.isFinished())
+				movieClip.nextFrame();
+			else
+				movieClip.goto(0);
+		}
+		for (child in movieClip.getChildren()) {
+			if (Std.isOfType(child, MovieClip))
+				updateMovieClips(cast child, advance);
+		}
 	}
 
 	override function update(elapsed:Float) {
 		super.update(elapsed);
 
-		if (playing) {
-			var currentFrame = curFrame;
-			_animFrame += elapsed * fps;
-			if (curFrame != currentFrame) {
-				symbolAnimFrame.dispatch(currentSymbol, curFrame);
+		if (!stopMovieClips) {
+			_movieClipAnimFrame += elapsed * fps;
+	
+			if (_movieClipAnimFrame >= 1) {
+				_movieClipAnimFrame = 0;
+				updateMovieClips(currentSymbol.movieClip, true, true);
 			}
+		}
+
+		if (playing) {
+			final currentFrame = curFrame;
+			_animFrame += elapsed * fps;
+			
+			if (curFrame != currentFrame)
+				symbolAnimFrame.dispatch(currentSymbol, curFrame);
 
 			if (finished) {
 				if (currentSymbol.loop)
@@ -239,8 +323,7 @@ class FlxSwfSprite extends FlxSkewedSprite {
 			if (pixels != null) {
 				this.fill(FlxColor.TRANSPARENT);
 			}
-			@:privateAccess
-			currentSymbol.movieClip.__timeline.__goto(frame);
+			currentSymbol.movieClip.goto(frame);
 			resetSymbolSize();
 		}
 		return frame;
@@ -253,7 +336,7 @@ class FlxSwfSprite extends FlxSkewedSprite {
 		if (currentSymbol.indices != null && currentSymbol.indices.length > 0)
 			return (curFrame > currentSymbol.indices.length - 1);
 		else
-			return (curFrame > currentSymbol.movieClip.totalFrames);
+			return currentSymbol.movieClip.isFinished();
 	}
 
 	inline function get_curFrame():Int {
