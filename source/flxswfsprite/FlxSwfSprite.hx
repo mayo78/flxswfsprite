@@ -21,7 +21,6 @@ typedef SymbolData = {
 	var graphic:FlxGraphic;
 	var movieClip:MovieClip;
 	var activeRect:FlxRect;
-	var size:FlxPoint;
 	var loop:Bool;
 	var fps:Float;
 	var indices:Null<Array<Int>>;
@@ -107,7 +106,6 @@ class FlxSwfSprite extends FlxSkewedSprite {
 
 		// dumb dumb dumb dumb dumb dumb
 		final rect = FlxRect.get();
-		final size = FlxPoint.get();
 
 		while (movieClip.currentFrame < movieClip.totalFrames) {
 			@:privateAccess
@@ -130,7 +128,6 @@ class FlxSwfSprite extends FlxSkewedSprite {
 		rect.width = rect.width - rect.x;
 		rect.height = rect.height - rect.y;
 
-		size.scale(drawScale);
 		rect.x *= drawScale;
 		rect.y *= drawScale;
 
@@ -147,14 +144,10 @@ class FlxSwfSprite extends FlxSkewedSprite {
 			fps: fps,
 			indices: indices,
 			activeRect: rect,
-			size: size,
 		}
 
 		symbolData.graphic.persist = true;
 		animationMap.set(symbolData.name, symbolData);
-
-		rect.put();
-		size.put();
 	}
 
 	public function playSymbol(name:String, frame:Int = 0) {
@@ -227,6 +220,8 @@ class FlxSwfSprite extends FlxSkewedSprite {
 		symbolMatrix = null;
 
 		for (i in animationMap) {
+			i.activeRect.put();
+			i.activeRect = null;
 			i.graphic = null;
 			i.movieClip = null;
 		}
