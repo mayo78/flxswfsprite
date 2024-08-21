@@ -1,5 +1,7 @@
-package flxswfsprite;
+package deepend.system;
 
+import flixel.util.FlxSignal.FlxTypedSignal;
+import flixel.addons.effects.FlxSkewedSprite;
 import flixel.math.FlxRect;
 import flixel.math.FlxPoint;
 import flixel.util.FlxColor;
@@ -25,17 +27,22 @@ typedef SymbolData = {
 	var indices:Null<Array<Int>>;
 }
 
-class FlxSwfSprite extends FlxSprite {
+class FlxSwfSprite extends FlxSkewedSprite {
 	public static var warn:Bool = true;
 
 	public var drawScale:Float = 1;
-	
-	public var symbolAnimComplete:SymbolData->Void;
-	
+
+	public var symbolAnimComplete:FlxTypedSignal<SymbolData->Void> = new FlxTypedSignal<SymbolData->Void>();
+	public var symbolAnimFrame:FlxTypedSignal<(SymbolData, Int) -> Void> = new FlxTypedSignal<(SymbolData, Int) -> Void>();
+
 	public var playing:Bool;
 	public var symbolFrame(get, set):Int;
+	public var finished(get, null):Bool;
+
+	var curFrame(get, null):Int;
+
 	public var fps:Float;
-	
+
 	var _animFrame:Float;
 
 	var library:String;
@@ -150,28 +157,28 @@ class FlxSwfSprite extends FlxSprite {
 		size.put();
 	}
 
-	public function playSymbol(name:String) {
+	public function playSymbol(name:String, frame:Int = 0) {
 		if (!animationMap.exists(name)) {
 			symbolError(name);
 		} else {
 			playing = true;
 			currentSymbol = animationMap.get(name);
 
-			symbolFrame = 0;
-			_animFrame = 0;
+			symbolFrame = frame;
+			_animFrame = frame;
 
 			fps = currentSymbol.fps;
 			frames = currentSymbol.graphic.imageFrame;
-
-			updateHitbox();
 		}
 	}
 
-	override function updateHitbox() {
-		frameWidth = Math.ceil(currentSymbol.activeRect.width / 1.5);
-		frameHeight = Math.ceil(currentSymbol.activeRect.height / 1.5);
-
-		super.updateHitbox();
+	function resetSymbolSize() {
+		if (currentSymbol != null) {
+			frameWidth = Math.ceil(currentSymbol.activeRect.width / 1.5);
+			frameHeight = Math.ceil(currentSymbol.activeRect.height / 1.5);
+		}
+		_halfSize.set(0.5 * frameWidth, 0.5 * frameHeight);
+		resetSize();
 	}
 
 	public function symbolExists(name:String) {
@@ -182,33 +189,31 @@ class FlxSwfSprite extends FlxSprite {
 		super.update(elapsed);
 
 		if (playing) {
+			var currentFrame = curFrame;
 			_animFrame += elapsed * fps;
-			var nextFrame = Math.floor(_animFrame);
+			if (curFrame != currentFrame) {
+				symbolAnimFrame.dispatch(currentSymbol, curFrame);
+			}
 
-			if ((currentSymbol.indices == null && nextFrame > currentSymbol.movieClip.totalFrames) || (currentSymbol.indices != null && nextFrame > currentSymbol.indices.length - 1)) {
+			if (finished) {
 				if (currentSymbol.loop)
-					_animFrame = nextFrame = 0;
+					_animFrame = 0;
 				else
 					playing = false;
 
-				if (symbolAnimComplete != null)
-					symbolAnimComplete(currentSymbol);
+				symbolAnimComplete.dispatch(currentSymbol);
 			}
-			
-			if (playing)
-				symbolFrame = currentSymbol.indices != null ? currentSymbol.indices[nextFrame] : nextFrame;
+			symbolFrame = (currentSymbol.indices != null && currentSymbol.indices.length > 0) ? currentSymbol.indices[curFrame] : curFrame;
 		}
 	}
 
 	override function draw() {
 		if (currentSymbol != null) {
-			this.fill(FlxColor.TRANSPARENT);
-
 			symbolMatrix.identity();
-			// what the fuck
+
 			symbolMatrix.scale(drawScale, drawScale);
 			// symbolMatrix.translate(-currentSymbol.activeRect.x, -currentSymbol.activeRect.y);
-			
+
 			graphic.bitmap.draw(currentSymbol.movieClip, symbolMatrix, null, null, false);
 		}
 
@@ -222,7 +227,6 @@ class FlxSwfSprite extends FlxSprite {
 		symbolMatrix = null;
 
 		for (i in animationMap) {
-			i.graphic.decrementUseCount();
 			i.graphic = null;
 			i.movieClip = null;
 		}
@@ -237,10 +241,27 @@ class FlxSwfSprite extends FlxSprite {
 
 	inline function set_symbolFrame(frame:Int) {
 		if (symbolFrame != frame) {
+			if (pixels != null) {
+				this.fill(FlxColor.TRANSPARENT);
+			}
 			@:privateAccess
 			currentSymbol.movieClip.__timeline.__goto(frame);
+			resetSymbolSize();
 		}
-		
 		return frame;
+	}
+
+	inline function get_finished():Bool {
+		if (currentSymbol == null)
+			return true;
+
+		if (currentSymbol.indices != null && currentSymbol.indices.length > 0)
+			return (curFrame > currentSymbol.indices.length - 1);
+		else
+			return (curFrame > currentSymbol.movieClip.totalFrames);
+	}
+
+	inline function get_curFrame():Int {
+		return Math.floor(_animFrame);
 	}
 }
