@@ -4,7 +4,7 @@ import openfl.display.MovieClip;
 
 class MovieClipUtil {
 	public static function isFinished(movieClip:MovieClip) {
-		return movieClip.currentFrame > movieClip.totalFrames;
+		return movieClip.currentFrame >= movieClip.totalFrames;
 	}
 	
 	public static function goto(movieClip:MovieClip, frame:Int) {

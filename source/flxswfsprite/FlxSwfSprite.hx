@@ -202,14 +202,19 @@ class FlxSwfSprite extends #if flixel_addons flixel.addons.effects.FlxSkewedSpri
 	/**
 	 * Play a symbol as an animation
 	 * @param name The name of the symbol
+	 * @param force If the animation is not complete and you try to play the same anim, it wont unless force is true
 	 * @param frame The frame to start on
 	 */
-	public function playSymbol(name:String, frame:Int = 0) {
+	public function playSymbol(name:String, force:Bool = false, frame:Int = 0) {
 		if (!animationMap.exists(name)) {
 			symbolError(name);
 		} else {
+			final nextSymbol = animationMap.get(name);
+			if (currentSymbol != null && currentSymbol.name == nextSymbol.name && playing && !force)
+				return;
+			else
+				currentSymbol = nextSymbol;
 			playing = true;
-			currentSymbol = animationMap.get(name);
 			currentSymbol.movieClip.stopAllMovieClips();
 			if (syncMovieClips)
 				updateMovieClips(currentSymbol.movieClip, false);
@@ -334,7 +339,7 @@ class FlxSwfSprite extends #if flixel_addons flixel.addons.effects.FlxSkewedSpri
 			return true;
 
 		if (currentSymbol.indices != null && currentSymbol.indices.length > 0)
-			return (curFrame > currentSymbol.indices.length - 1);
+			return (curFrame >= currentSymbol.indices.length - 1);
 		else
 			return currentSymbol.movieClip.isFinished();
 	}
