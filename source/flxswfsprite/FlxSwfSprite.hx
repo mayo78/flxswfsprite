@@ -95,6 +95,8 @@ class FlxSwfSprite extends #if flixel_addons flixel.addons.effects.FlxSkewedSpri
 
 	var symbolMatrix = new Matrix();
 
+	var symbolDirty:Bool = true;
+
 	public function new(x = .0, y = .0, library:String) {
 		super(x, y);
 
@@ -252,6 +254,7 @@ class FlxSwfSprite extends #if flixel_addons flixel.addons.effects.FlxSkewedSpri
 			else
 				movieClip.goto(0);
 		}
+		//movieClip.stop();
 		for (child in movieClip.getChildren()) {
 			if (Std.isOfType(child, MovieClip))
 				updateMovieClips(cast child, advance);
@@ -289,14 +292,19 @@ class FlxSwfSprite extends #if flixel_addons flixel.addons.effects.FlxSkewedSpri
 		}
 	}
 
-	override function draw() {
-		if (currentSymbol != null) {
+	function redrawSymbol() {
+		if (pixels != null) {
+			this.fill(FlxColor.TRANSPARENT);
 			symbolMatrix.identity();
-
 			symbolMatrix.scale(drawScale, drawScale);
-			// symbolMatrix.translate(-currentSymbol.activeRect.x, -currentSymbol.activeRect.y);
-
 			graphic.bitmap.draw(currentSymbol.movieClip, symbolMatrix, null, null, false);
+		}
+		symbolDirty = false;
+	}
+
+	override function draw() {
+		if (currentSymbol != null && symbolDirty) {
+			redrawSymbol();
 		}
 
 		super.draw();
@@ -325,11 +333,9 @@ class FlxSwfSprite extends #if flixel_addons flixel.addons.effects.FlxSkewedSpri
 
 	inline function set_symbolFrame(frame:Int) {
 		if (symbolFrame != frame) {
-			if (pixels != null) {
-				this.fill(FlxColor.TRANSPARENT);
-			}
 			currentSymbol.movieClip.goto(frame);
 			resetSymbolSize();
+			symbolDirty = true;
 		}
 		return frame;
 	}
