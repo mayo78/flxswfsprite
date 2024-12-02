@@ -1,5 +1,8 @@
 package flxswfsprite;
 
+import flixel.math.FlxAngle;
+import flixel.FlxCamera;
+import flixel.graphics.frames.FlxFrame;
 import flixel.util.FlxSignal.FlxTypedSignal;
 import flixel.math.FlxRect;
 import flixel.math.FlxPoint;
@@ -24,6 +27,7 @@ typedef SymbolData = {
 	var loop:Bool;
 	var fps:Float;
 	var indices:Null<Array<Int>>;
+	var frames:Array<FlxFrame>;
 }
 
 class FlxSwfSprite extends #if flixel_addons flixel.addons.effects.FlxSkewedSprite #else flixel.FlxSprite #end {
@@ -75,6 +79,12 @@ class FlxSwfSprite extends #if flixel_addons flixel.addons.effects.FlxSkewedSpri
 	 * The framerate of the current symbol. Can be set manually.
 	 */
 	public var fps:Float;
+
+	/**
+	 * Experimental
+	 * Will make FlxFrames similar to a standard spritesheet for every frame
+	 */
+	public final renderFrames:Bool;
 	
 	var curFrame(get, null):Int;
 
@@ -91,24 +101,24 @@ class FlxSwfSprite extends #if flixel_addons flixel.addons.effects.FlxSkewedSpri
 	var currentSymbol:SymbolData;
 
 	var clipContainer:Sprite;
-	var _clipSize:Sprite;
 
 	var symbolMatrix = new Matrix();
 
 	var symbolDirty:Bool = true;
 
-	public function new(x = .0, y = .0, library:String) {
+	public function new(x = .0, y = .0, library:String, renderFrames:Bool = false) {
 		super(x, y);
+
+		this.renderFrames = renderFrames;
 
 		this.library = library;
 
-		clipContainer = new Sprite();
-		clipContainer.visible = false;
-
-		_clipSize = new Sprite();
-		clipContainer.addChild(_clipSize);
-
-		FlxG.addChildBelowMouse(clipContainer);
+		if (!renderFrames) {
+			clipContainer = new Sprite();
+			clipContainer.visible = false;
+	
+			FlxG.addChildBelowMouse(clipContainer);
+		}
 	}
 
 	static final _az123:EReg = ~/^[a-z0-9_]+$/i;
@@ -158,46 +168,76 @@ class FlxSwfSprite extends #if flixel_addons flixel.addons.effects.FlxSkewedSpri
 
 		// dumb dumb dumb dumb dumb dumb
 		final rect = FlxRect.get();
+		final frames = new Array<FlxFrame>();
 
 		while (movieClip.currentFrame < movieClip.totalFrames) {
+			var minX = .0;
+			var minY = .0;
+			var maxX = .0;
+			var maxY = .0;
 			for (child in movieClip.getChildren()) {
-				if (child.x != 0 && rect.x > child.x || rect.x == 0)
-					rect.x = child.x;
-
-				if (child.y != 0 && rect.y > child.y || rect.y == 0)
-					rect.y = child.y;
-
-				rect.width = Math.max(rect.width, child.x + child.width);
-				rect.height = Math.max(rect.height, child.y + child.height);
+				if (!renderFrames) {
+					if (child.x != 0 && rect.x > child.x || rect.x == 0)
+						rect.x = child.x;
+	
+					if (child.y != 0 && rect.y > child.y || rect.y == 0)
+						rect.y = child.y;
+	
+					rect.width = Math.max(rect.width, child.x + child.width);
+					rect.height = Math.max(rect.height, child.y + child.height);
+				} else {
+					minX = Math.min(minX, child.x);
+					minY = Math.min(minY, child.y);
+					maxX = Math.max(maxX, child.x + child.width);
+					maxY = Math.max(maxY, child.y + child.height);
+				}
+			}
+			if (renderFrames) {
+				final key = '$library$symbol:frame${movieClip.currentFrame}';
+				var graphic = FlxG.bitmap.get(key);
+				if (graphic == null) {
+					graphic = FlxGraphic.fromRectangle(Math.ceil(maxX - minY), Math.ceil(maxY - minY), 0x00, false, key);
+					graphic.imageFrame.frame.offset.set(minX, minY);
+					symbolMatrix.identity();
+					symbolMatrix.translate(-minX, -minY);
+					symbolMatrix.scale(drawScale, drawScale);
+					graphic.bitmap.draw(movieClip, symbolMatrix, null, null, false);
+				}
+				graphic.useCount++;
+				frames.push(graphic.imageFrame.frame);
 			}
 
 			movieClip.nextFrame();
 		}
 
-		movieClip.goto(0);
-
-		rect.width = rect.width - rect.x;
-		rect.height = rect.height - rect.y;
-
-		rect.x *= drawScale;
-		rect.y *= drawScale;
-
-		rect.width *= drawScale * 1.5;
-		rect.height *= drawScale * 1.5;
-
-		clipContainer.addChild(movieClip);
+		if (!renderFrames) {
+			movieClip.goto(0);
+	
+			rect.width = rect.width - rect.x;
+			rect.height = rect.height - rect.y;
+	
+			rect.x *= drawScale;
+			rect.y *= drawScale;
+	
+			rect.width *= drawScale * 1.5;
+			rect.height *= drawScale * 1.5;
+	
+			clipContainer.addChild(movieClip);
+		}
 
 		final symbolData:SymbolData = {
 			name: name ?? symbol,
-			graphic: FlxGraphic.fromRectangle(Math.ceil(rect.width), Math.ceil(rect.height), 0x00, true, '$this$library:$symbol:graphic'),
+			graphic: renderFrames ? null : FlxGraphic.fromRectangle(Math.ceil(rect.width), Math.ceil(rect.height), 0x00, true, '$this$library:$symbol:graphic'),
 			movieClip: movieClip,
 			loop: loop,
 			fps: fps,
 			indices: indices,
 			activeRect: rect,
+			frames: frames,
 		}
 
-		symbolData.graphic.persist = true;
+		if (!renderFrames)
+			symbolData.graphic.persist = true;
 		animationMap.set(symbolData.name, symbolData);
 	}
 
@@ -217,16 +257,19 @@ class FlxSwfSprite extends #if flixel_addons flixel.addons.effects.FlxSkewedSpri
 			else
 				currentSymbol = nextSymbol;
 			playing = true;
-			currentSymbol.movieClip.stopAllMovieClips();
-			if (syncMovieClips)
-				updateMovieClips(currentSymbol.movieClip, false);
+			if (!renderFrames) {
+				currentSymbol.movieClip.stopAllMovieClips();
+				if (syncMovieClips)
+					updateMovieClips(currentSymbol.movieClip, false);
+			}
 
 			symbolFrame = frame;
 			_animFrame = frame;
 			_movieClipAnimFrame = 0;
 
 			fps = currentSymbol.fps;
-			frames = currentSymbol.graphic.imageFrame;
+			if (!renderFrames)
+				frames = currentSymbol.graphic.imageFrame;
 		}
 	}
 
@@ -264,7 +307,7 @@ class FlxSwfSprite extends #if flixel_addons flixel.addons.effects.FlxSkewedSpri
 	override function update(elapsed:Float) {
 		super.update(elapsed);
 
-		if (!stopMovieClips) {
+		if (!stopMovieClips && !renderFrames) {
 			_movieClipAnimFrame += elapsed * fps;
 	
 			if (_movieClipAnimFrame >= 1) {
@@ -303,17 +346,65 @@ class FlxSwfSprite extends #if flixel_addons flixel.addons.effects.FlxSkewedSpri
 	}
 
 	override function draw() {
-		if (currentSymbol != null && symbolDirty) {
+		if (currentSymbol != null && symbolDirty && !renderFrames) {
 			redrawSymbol();
 		}
 
 		super.draw();
 	}
 
+	override function isSimpleRender(?camera:FlxCamera):Bool {
+		if (drawScale != 1)
+			return false;
+		return super.isSimpleRender(camera);
+	}
+
+	override function drawComplex(camera:FlxCamera):Void
+	{
+		_frame.prepareMatrix(_matrix, FlxFrameAngle.ANGLE_0, checkFlipX() != camera.flipX, checkFlipY() != camera.flipY);
+		final inv = 1 / drawScale;
+		_matrix.scale(inv, inv);
+		_matrix.translate(-origin.x, -origin.y);
+		_matrix.scale(scale.x, scale.y);
+
+		if (frameOffsetAngle != null && frameOffsetAngle != angle)
+		{
+			var angleOff = (-angle + frameOffsetAngle) * FlxAngle.TO_RAD;
+			_matrix.rotate(-angleOff);
+			_matrix.translate(-frameOffset.x, -frameOffset.y);
+			_matrix.rotate(angleOff);
+		}
+		else
+		{
+			_matrix.translate(-frameOffset.x, -frameOffset.y);
+		}
+
+		if (bakedRotationAngle <= 0)
+		{
+			updateTrig();
+
+			if (angle != 0)
+				_matrix.rotateWithTrig(_cosAngle, _sinAngle);
+		}
+
+		getScreenPosition(_point, camera).subtractPoint(offset);
+		_point.add(origin.x, origin.y);
+		_matrix.translate(_point.x, _point.y);
+
+		if (isPixelPerfectRender(camera))
+		{
+			_matrix.tx = Math.floor(_matrix.tx);
+			_matrix.ty = Math.floor(_matrix.ty);
+		}
+
+		camera.drawPixels(_frame, framePixels, _matrix, colorTransform, blend, antialiasing, shader);
+	}
+
 	override function destroy() {
 		super.destroy();
 
-		FlxG.removeChild(clipContainer);
+		if (!renderFrames)
+			FlxG.removeChild(clipContainer);
 		symbolMatrix = null;
 
 		for (i in animationMap) {
@@ -321,6 +412,16 @@ class FlxSwfSprite extends #if flixel_addons flixel.addons.effects.FlxSkewedSpri
 			i.activeRect = null;
 			i.graphic = null;
 			i.movieClip = null;
+			if (renderFrames) {
+				while (i.frames.length > 0) {
+					final frame = i.frames.pop();
+					if (frame != null && frame.parent != null) {
+						frame.parent.useCount--;
+						frame.destroy();
+					}
+				}
+			}
+			i.frames = null;
 		}
 
 		animationMap.clear();
@@ -333,9 +434,13 @@ class FlxSwfSprite extends #if flixel_addons flixel.addons.effects.FlxSkewedSpri
 
 	inline function set_symbolFrame(frame:Int) {
 		if (symbolFrame != frame) {
-			currentSymbol.movieClip.goto(frame);
-			resetSymbolSize();
-			symbolDirty = true;
+			if (renderFrames) {
+				this.frame = currentSymbol.frames[frame];
+			} else {
+				currentSymbol.movieClip.goto(frame);
+				resetSymbolSize();
+				symbolDirty = true;
+			}
 		}
 		return frame;
 	}
@@ -345,7 +450,9 @@ class FlxSwfSprite extends #if flixel_addons flixel.addons.effects.FlxSkewedSpri
 			return true;
 
 		if (currentSymbol.indices != null && currentSymbol.indices.length > 0)
-			return (curFrame >= currentSymbol.indices.length - 1);
+			return curFrame >= currentSymbol.indices.length - 1;
+		else if (renderFrames)
+			return curFrame >= currentSymbol.frames.length - 1;
 		else
 			return currentSymbol.movieClip.isFinished();
 	}
