@@ -13,7 +13,7 @@ import flixel.graphics.FlxGraphic;
 import flixel.FlxG;
 import openfl.Assets;
 import openfl.display.MovieClip;
-import flixel.FlxSprite;
+
 
 using flixel.util.FlxSpriteUtil;
 using flxswfsprite.MovieClipUtil;
@@ -197,13 +197,18 @@ class FlxSwfSprite extends #if flixel_addons flixel.addons.effects.FlxSkewedSpri
 				var graphic = FlxG.bitmap.get(key);
 				if (graphic == null) {
 					graphic = FlxGraphic.fromRectangle(Math.ceil(maxX - minY), Math.ceil(maxY - minY), 0x00, false, key);
+					graphic.persist = true;
 					graphic.imageFrame.frame.offset.set(minX, minY);
 					symbolMatrix.identity();
 					symbolMatrix.translate(-minX, -minY);
 					symbolMatrix.scale(drawScale, drawScale);
 					graphic.bitmap.draw(movieClip, symbolMatrix, null, null, false);
 				}
-				graphic.useCount++;
+				#if (flixel < "5.4.0")
+				frame.parent.useCount++;
+				#else
+				frame.parent.incrementUseCount();
+				#end
 				frames.push(graphic.imageFrame.frame);
 			}
 
@@ -361,23 +366,11 @@ class FlxSwfSprite extends #if flixel_addons flixel.addons.effects.FlxSkewedSpri
 
 	override function drawComplex(camera:FlxCamera):Void
 	{
-		_frame.prepareMatrix(_matrix, FlxFrameAngle.ANGLE_0, checkFlipX() != camera.flipX, checkFlipY() != camera.flipY);
+		_frame.prepareMatrix(_matrix, FlxFrameAngle.ANGLE_0, checkFlipX(), checkFlipY());
 		final inv = 1 / drawScale;
 		_matrix.scale(inv, inv);
 		_matrix.translate(-origin.x, -origin.y);
 		_matrix.scale(scale.x, scale.y);
-
-		if (frameOffsetAngle != null && frameOffsetAngle != angle)
-		{
-			var angleOff = (-angle + frameOffsetAngle) * FlxAngle.TO_RAD;
-			_matrix.rotate(-angleOff);
-			_matrix.translate(-frameOffset.x, -frameOffset.y);
-			_matrix.rotate(angleOff);
-		}
-		else
-		{
-			_matrix.translate(-frameOffset.x, -frameOffset.y);
-		}
 
 		if (bakedRotationAngle <= 0)
 		{
@@ -416,7 +409,11 @@ class FlxSwfSprite extends #if flixel_addons flixel.addons.effects.FlxSkewedSpri
 				while (i.frames.length > 0) {
 					final frame = i.frames.pop();
 					if (frame != null && frame.parent != null) {
+						#if (flixel < "5.4.0")
 						frame.parent.useCount--;
+						#else
+						frame.parent.decrementUseCount();
+						#end
 						frame.destroy();
 					}
 				}
