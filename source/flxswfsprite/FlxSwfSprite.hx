@@ -56,11 +56,11 @@ class FlxSwfSprite extends #if flixel_addons flixel.addons.effects.FlxSkewedSpri
 	/**
 	 * Signal called when the current symbol completes its animation
 	 */
-	public var symbolAnimComplete:FlxTypedSignal<SymbolData->Void> = new FlxTypedSignal<SymbolData->Void>();
+	public final symbolAnimComplete:FlxTypedSignal<SymbolData->Void> = new FlxTypedSignal<SymbolData->Void>();
 	/**
 	 * Signal called when the current symbol changes its frame
 	 */
-	public var symbolAnimFrame:FlxTypedSignal<(SymbolData, Int) -> Void> = new FlxTypedSignal<(SymbolData, Int) -> Void>();
+	public final symbolAnimFrame:FlxTypedSignal<(SymbolData, Int) -> Void> = new FlxTypedSignal<(SymbolData, Int) -> Void>();
 
 	/**
 	 * Whether the symbol is playing. Can be set manually if you want
@@ -423,6 +423,10 @@ class FlxSwfSprite extends #if flixel_addons flixel.addons.effects.FlxSkewedSpri
 
 		animationMap.clear();
 		animationMap = null;
+
+		symbolAnimComplete.destroy();
+		symbolAnimFrame.destroy();
+
 	}
 
 	inline function get_symbolFrame() {
