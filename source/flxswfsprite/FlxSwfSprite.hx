@@ -403,7 +403,6 @@ class FlxSwfSprite extends #if flixel_addons flixel.addons.effects.FlxSkewedSpri
 		for (i in animationMap) {
 			i.activeRect.put();
 			i.activeRect = null;
-			i.graphic = null;
 			i.movieClip = null;
 			if (renderFrames) {
 				while (i.frames.length > 0) {
@@ -417,6 +416,9 @@ class FlxSwfSprite extends #if flixel_addons flixel.addons.effects.FlxSkewedSpri
 						frame.destroy();
 					}
 				}
+			} else {
+				i.graphic.destroy();
+				i.graphic = null;
 			}
 			i.frames = null;
 		}
