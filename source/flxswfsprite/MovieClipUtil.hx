@@ -9,7 +9,7 @@ class MovieClipUtil {
 	
 	public static function goto(movieClip:MovieClip, frame:Int) {
 		@:privateAccess
-		movieClip.__timeline.__goto(frame);
+		movieClip?.__timeline?.__goto(frame);
 	}
 
 	public static function getChildren(movieClip:MovieClip) {

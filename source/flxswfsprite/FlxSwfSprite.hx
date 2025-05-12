@@ -163,7 +163,7 @@ class FlxSwfSprite extends #if flixel_addons flixel.addons.effects.FlxSkewedSpri
 
 		if (movieClip == null) {
 			symbolError(symbol);
-			return;
+			return false;
 		}
 
 		// dumb dumb dumb dumb dumb dumb
@@ -244,6 +244,7 @@ class FlxSwfSprite extends #if flixel_addons flixel.addons.effects.FlxSkewedSpri
 		if (!renderFrames)
 			symbolData.graphic.persist = true;
 		animationMap.set(symbolData.name, symbolData);
+		return true;
 	}
 
 	/**
